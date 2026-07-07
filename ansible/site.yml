@@ -1,0 +1,58 @@
+---
+- hosts: web
+  become: yes
+
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Java 11
+      apt:
+        name: openjdk-11-jdk
+        state: present
+
+    - name: Create application directory
+      file:
+        path: /opt/devops-app
+        state: directory
+        mode: '0755'
+
+    - name: Copy Spring Boot JAR
+      copy:
+        src: ../target/devops-demo-0.3.0.jar
+        dest: /opt/devops-app/devops-demo.jar
+        mode: '0755'
+
+    - name: Create systemd service
+      copy:
+        dest: /etc/systemd/system/devops.service
+        content: |
+          [Unit]
+          Description=Spring Boot DevOps Application
+          After=network.target
+
+          [Service]
+          User=azureuser
+          WorkingDirectory=/opt/devops-app
+          ExecStart=/usr/bin/java -jar /opt/devops-app/devops-demo.jar
+          SuccessExitStatus=143
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable service
+      systemd:
+        name: devops
+        enabled: yes
+
+    - name: Start service
+      systemd:
+        name: devops
+        state: restarted
